@@ -1,5 +1,6 @@
 import ReactDOM from 'react-dom/client';
 
+import './components/datadog/rumInit.jsx';
 import App from './App.jsx';
 import './index.css';
 

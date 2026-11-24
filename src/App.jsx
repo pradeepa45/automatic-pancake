@@ -1,6 +1,6 @@
 import Player from './components/Player.jsx';
 import GameBoard from './components/GameBoard.jsx';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Log from './components/Log.jsx';
 import { WINNING_COMBINATIONS } from './winning-combinations.js';
 import GameOver from './components/GameOver.jsx';
@@ -30,7 +30,6 @@ function deriveWinner(gameBoard,players, gameTurns) {
     const firstSquareSymbol = gameBoard[combo[0].rowIndex][combo[0].colIndex];
     const secondSquareSymbol = gameBoard[combo[1].rowIndex][combo[1].colIndex];
     const thirdSquareSymbol = gameBoard[combo[2].rowIndex][combo[2].colIndex];
-    console.log("fs,ss.ts",firstSquareSymbol, firstSquareSymbol, secondSquareSymbol);
     if(firstSquareSymbol && (firstSquareSymbol === secondSquareSymbol) && (firstSquareSymbol === thirdSquareSymbol)){
       winner = players[firstSquareSymbol]
     }
@@ -53,6 +52,10 @@ function App() {
   const [gameTurns, setGameTurns] = useState([]);
   const [players, setPlayers] = useState(INITIAL_PLAYERS);
   const handlePlayerNameChange=(symbol, player) => {
+    DLogger.info('Player name updated', {
+      event: 'player_name_updated',
+      playerSymbol: symbol,
+    });
     setPlayers({
       ...players,
       [symbol]:player
@@ -64,14 +67,40 @@ function App() {
   const gameBoard = deriveGameBoard(gameTurns);
 
   const {winner, hasDraw} = deriveWinner(gameBoard, players, gameTurns)
+  const gameOverLogged = useRef(false);
+
+  useEffect(() => {
+    if (winner || hasDraw) {
+      if (!gameOverLogged.current) {
+        const winningSymbol = Object.keys(players).find(symbol => players[symbol] === winner);
+        DLogger.info('Game finished', {
+          event: 'game_finished',
+          result: winner ? 'win' : 'draw',
+          winningSymbol,
+          moveCount: gameTurns.length,
+        });
+        gameOverLogged.current = true;
+      }
+    } else {
+      gameOverLogged.current = false;
+    }
+  }, [gameTurns.length, hasDraw, players, winner]);
   
   const handleRematch = () => {
+    DLogger.info('Game rematch started', {
+      event: 'game_rematch',
+      previousMoveCount: gameTurns.length,
+    });
     setGameTurns([])
   }
   
   const handleSelectSquare = (rowIndex, colIndex) => {
-    DLogger("Square selected", {position: {rowIndex, colIndex}})
-    DLogger("Current player", { activePlayer })
+    DLogger.info('Game move selected', {
+      event: 'game_move',
+      playerSymbol: activePlayer,
+      position: { rowIndex, colIndex },
+      moveNumber: gameTurns.length + 1,
+    });
     setGameTurns(prevState => {
       let currentPlayer = deriveActivePlayer(prevState);
       if(prevState.length>0 && prevState[0].player==='X') {
